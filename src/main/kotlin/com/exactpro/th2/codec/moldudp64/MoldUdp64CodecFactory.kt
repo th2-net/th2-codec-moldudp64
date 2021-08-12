@@ -28,7 +28,7 @@ class MoldUdp64CodecFactory : IPipelineCodecFactory {
     override fun init(context: IPipelineCodecContext) = Unit
 
     override fun create(settings: IPipelineCodecSettings?) = MoldUdp64Codec(requireNotNull(settings as? MoldUdp64CodecSettings) {
-        "settings is not an instance of ${MoldUdp64CodecSettings::class.java}: $settings"
+        "settings is not an instance of ${MoldUdp64CodecSettings::class.simpleName}: $settings"
     })
 
     companion object {

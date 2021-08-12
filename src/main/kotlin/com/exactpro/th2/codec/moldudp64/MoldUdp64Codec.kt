@@ -22,24 +22,19 @@ import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.message.messageType
 
-typealias MessageName = String
-typealias MessageType = String
-
 class MoldUdp64Codec(private val settings: MoldUdp64CodecSettings) : IPipelineCodec {
     override fun encode(messageGroup: MessageGroup): MessageGroup {
         val messages = messageGroup.messagesList
 
         if (messages.isEmpty()) return messageGroup
 
-        require(messages[0].hasMessage()) { "Header message must be a parsed message" }
-
-        val header = with(messages[0].message) {
+        val header = messages[0].takeIf(AnyMessage::hasMessage)?.message?.apply {
             val protocol = metadata.protocol
             require(protocol.isEmpty() || protocol == PROTOCOL) { "Unexpected protocol: $protocol (expected: $PROTOCOL)" }
             require(messageType == HEADER_MESSAGE_TYPE) { "Unexpected header message type: $messageType (expected: $HEADER_MESSAGE_TYPE)" }
         }
 
-        val payload = messages.subList(1, messages.size).run {
+        val payload = messages.subList(if (header == null) 0 else 1, messages.size).run {
             require(all(AnyMessage::hasRawMessage)) { "All payload messages must be raw messages" }
             map { it.rawMessage }
         }
@@ -73,5 +68,9 @@ class MoldUdp64Codec(private val settings: MoldUdp64CodecSettings) : IPipelineCo
 
     companion object {
         const val HEADER_MESSAGE_TYPE = "Header"
+        const val SESSION_FIELD = "Session"
+        const val SEQUENCE_FIELD = "SequenceNumber"
+        const val COUNT_FIELD = "MessageCount"
+        const val LENGTHS_FIELD = "MessageLengths"
     }
 }

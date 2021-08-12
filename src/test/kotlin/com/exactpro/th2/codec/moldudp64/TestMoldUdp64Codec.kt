@@ -16,7 +16,11 @@
 
 package com.exactpro.th2.codec.moldudp64
 
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.COUNT_FIELD
 import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.HEADER_MESSAGE_TYPE
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.LENGTHS_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.SEQUENCE_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.SESSION_FIELD
 import com.exactpro.th2.codec.moldudp64.MoldUdp64CodecFactory.Companion.PROTOCOL
 import com.exactpro.th2.common.event.bean.builder.MessageBuilder.MESSAGE_TYPE
 import com.exactpro.th2.common.grpc.AnyMessage
@@ -35,9 +39,11 @@ import com.exactpro.th2.common.message.messageType
 import com.exactpro.th2.common.message.plusAssign
 import com.exactpro.th2.common.message.sequence
 import com.exactpro.th2.common.message.sessionAlias
+import com.exactpro.th2.common.message.set
 import com.exactpro.th2.common.message.toTimestamp
 import com.google.protobuf.ByteString
 import com.google.protobuf.Timestamp
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -58,9 +64,9 @@ class TestMoldUdp64Codec {
         fun `heartbeat packet round-trip`() {
             val raw = raw(
                 packet = byteArrayOf(
-                    115, 101, 115, 115, 105, 111, 110, 45, 53, 56,
-                    0, 7, 21, 37, -66, 7, -36, 50,
-                    0, 0
+                    115, 101, 115, 115, 105, 111, 110, 45, 53, 56, // session
+                    0, 7, 21, 37, -66, 7, -36, 50, // sequence number
+                    0, 0 // message count
                 ),
             )
 
@@ -81,9 +87,9 @@ class TestMoldUdp64Codec {
         fun `end-of-session packet round-trip`() {
             val raw = raw(
                 packet = byteArrayOf(
-                    115, 101, 115, 115, 105, 111, 110, 45, 52, 54,
-                    0, 7, 21, 37, -67, 100, 99, -123,
-                    -1, -1
+                    115, 101, 115, 115, 105, 111, 110, 45, 52, 54, // session
+                    0, 7, 21, 37, -67, 100, 99, -123, // sequence number
+                    -1, -1 // message count
                 ),
             )
 
@@ -104,9 +110,9 @@ class TestMoldUdp64Codec {
         fun `request packet round-trip`() {
             val raw = raw(
                 packet = byteArrayOf(
-                    115, 101, 115, 115, 105, 111, 110, 45, 57, 49,
-                    0, 7, 21, 37, -66, 46, 88, 121,
-                    3, -24
+                    115, 101, 115, 115, 105, 111, 110, 45, 57, 49, // session
+                    0, 7, 21, 37, -66, 46, 88, 121, // sequence number
+                    3, -24 // message count
                 ),
                 th2Direction = SECOND
             )
@@ -128,14 +134,14 @@ class TestMoldUdp64Codec {
         fun `regular packet round-trip`() {
             val raw = raw(
                 packet = byteArrayOf(
-                    115, 101, 115, 115, 105, 111, 110, 45, 57, 48,
-                    0, 7, 21, 37, -77, 61, 105, -85,
-                    0, 3,
-                    0, 13,
-                    102, 105, 114, 115, 116, 32, 109, 101, 115, 115, 97, 103, 101,
-                    0, 0,
-                    0, 13,
-                    116, 104, 105, 114, 100, 32, 109, 101, 115, 115, 97, 103, 101
+                    115, 101, 115, 115, 105, 111, 110, 45, 57, 48, // session
+                    0, 7, 21, 37, -77, 61, 105, -85, // sequence number
+                    0, 3, // message count
+                    0, 13, // message 1 length
+                    102, 105, 114, 115, 116, 32, 109, 101, 115, 115, 97, 103, 101, // message 1
+                    0, 0, // message 2 length
+                    0, 13, // message 3 length
+                    116, 104, 105, 114, 100, 32, 109, 101, 115, 115, 97, 103, 101 // message 3
                 ),
             )
 
@@ -155,20 +161,42 @@ class TestMoldUdp64Codec {
 
             assertEquals(raw, codec.encode(decoded))
         }
+
+        @Test
+        fun `encoding payload without header`() {
+            val parsed = parsed(
+                header(),
+                message("first message".toByteArray()),
+                message(byteArrayOf()),
+                message("second message".toByteArray())
+            ).toBuilder().run {
+                removeMessages(0)
+                build()
+            }
+
+            val raw = codec.encode(parsed)
+
+            assertEquals(1, raw.messagesCount, "Unexpected count of decoded messages")
+            assertTrue(raw.getMessages(0).hasRawMessage(), "Unexpected parsed message")
+
+            val actualBody = raw.getMessages(0).rawMessage.body.toByteArray()
+            val expectedBody = byteArrayOf(
+                32, 32, 32, 32, 32, 32, 32, 32, 32, 32, // session
+                0, 0, 0, 0, 0, 0, 0, 0, // sequence number
+                0, 3, // message count
+                0, 13, // message 1 length
+                102, 105, 114, 115, 116, 32, 109, 101, 115, 115, 97, 103, 101, // message 1
+                0, 0, // message 2 length
+                0, 13, // message 3 length
+                116, 104, 105, 114, 100, 32, 109, 101, 115, 115, 97, 103, 101 // message 3
+            )
+
+            assertArrayEquals(expectedBody, actualBody)
+        }
     }
 
     @Nested
     inner class Negative {
-        @Test
-        fun `raw header message`() {
-            val group = MessageGroup.newBuilder().apply {
-                this += RawMessage.getDefaultInstance()
-            }.build()
-
-            val exception = assertThrows<IllegalArgumentException> { codec.encode(group) }
-            assertEquals("Header message must be a parsed message", exception.message)
-        }
-
         @Test
         fun `invalid header protocol`() {
             val parsed = parsed(header().apply { metadataBuilder.protocol = "http" })
@@ -381,11 +409,6 @@ class TestMoldUdp64Codec {
     }
 
     companion object {
-        private const val SESSION_FIELD = "Session"
-        private const val SEQUENCE_FIELD = "SequenceNumber"
-        private const val COUNT_FIELD = "MessageCount"
-        private const val LENGTHS_FIELD = "MessageLengths"
-
         private fun raw(
             packet: ByteArray,
             th2SessionAlias: String = UUID.randomUUID().toString(),
@@ -428,10 +451,10 @@ class TestMoldUdp64Codec {
                 putAllProperties(th2MetadataProperties)
             }
 
-            addField(SESSION_FIELD, packetSession)
-            addField(SEQUENCE_FIELD, packetSequenceNumber)
-            addField(COUNT_FIELD, packetMessageCount)
-            addField(LENGTHS_FIELD, packetMessageLengths)
+            this[SESSION_FIELD] = packetSession
+            this[SEQUENCE_FIELD] = packetSequenceNumber
+            this[COUNT_FIELD] = packetMessageCount
+            this[LENGTHS_FIELD] = packetMessageLengths
         }
 
         private fun message(messageBody: ByteArray): RawMessage.Builder = RawMessage.newBuilder().setBody(ByteString.copyFrom(messageBody))
@@ -502,7 +525,7 @@ class TestMoldUdp64Codec {
 
         private fun MessageGroup.withMessage(index: Int, block: RawMessage.() -> Unit) = messagesList[index + 1].rawMessage.block()
 
-        private fun RawMessage.assertContent(content: ByteArray) = assertEquals(content, body.toByteArray(), "Unexpected payload content")
+        private fun RawMessage.assertContent(content: ByteArray) = assertArrayEquals(content, body.toByteArray(), "Unexpected payload content")
 
         private fun RawMessage.assertSessionAlias(sessionAlias: String) = assertEquals(sessionAlias, metadata.id.connectionId.sessionAlias, "Unexpected session alias")
 
