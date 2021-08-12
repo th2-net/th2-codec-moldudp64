@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.codec.moldudp64
+package com.exactpro.th2.codec.moldudp64;
 
-import com.exactpro.th2.codec.api.IPipelineCodecSettings
+import com.exactpro.th2.codec.api.IPipelineCodecSettings;
 
-class MoldUdp64CodecSettings : IPipelineCodecSettings
+public class MoldUdp64CodecSettings implements IPipelineCodecSettings {
+}

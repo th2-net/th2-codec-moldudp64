@@ -16,12 +16,12 @@
 
 package com.exactpro.th2.codec.moldudp64
 
-import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.COUNT_FIELD
-import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.HEADER_MESSAGE_TYPE
-import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.LENGTHS_FIELD
-import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.SEQUENCE_FIELD
-import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.Companion.SESSION_FIELD
-import com.exactpro.th2.codec.moldudp64.MoldUdp64CodecFactory.Companion.PROTOCOL
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.COUNT_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.HEADER_MESSAGE_TYPE
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.LENGTHS_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.SEQUENCE_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64Codec.SESSION_FIELD
+import com.exactpro.th2.codec.moldudp64.MoldUdp64CodecFactory.PROTOCOL
 import com.exactpro.th2.common.event.bean.builder.MessageBuilder.MESSAGE_TYPE
 import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.Direction
